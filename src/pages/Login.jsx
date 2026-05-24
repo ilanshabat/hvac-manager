@@ -42,7 +42,7 @@ export default function Login({ onLogin }) {
         <div style={s.hero}>
           <div style={s.logo}>🏗️</div>
           <div style={s.title}>ברוך הבא</div>
-          <div style={s.sub}>מערכת ניהול פרויקטי מיזוג אוויר</div>
+          <div style={s.sub}>FieldOps — ניהול פרויקטי ביצוע</div>
         </div>
         <div style={s.body}>
           <form onSubmit={handleLogin}>
