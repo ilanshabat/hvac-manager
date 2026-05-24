@@ -52,8 +52,11 @@ export default function Subcontractors({ project, onBack }) {
       setShowAdd(false)
       await fetchSubs()
 
-      // הצג את הקוד למנהל
-      alert(`✅ קבלן נוסף בהצלחה!\n\nשלח לו את הקוד הזה:\n🔑 ${code}\n\nשלח בוואטסאפ:\nhttps://wa.me/972${form.phone.replace(/^0/, '')}?text=שלום ${form.name}, קוד הגישה שלך למערכת: ${code}`)
+      // הצג את הקוד למנהל ושלח וואטסאפ
+      const appUrl = 'https://hvac-manager-five.vercel.app'
+      const waMsg = `שלום ${form.name} 👋\n\nהוזמנת למערכת ניהול הפרויקטים של אילן שבת.\n\n🔗 כניסה לאפליקציה:\n${appUrl}\n\n🔑 קוד גישה שלך: ${code}\n\nהקוד תקף ל-48 שעות.`
+      const phone = form.phone.replace(/^0/, '')
+      window.open(`https://wa.me/972${phone}?text=${encodeURIComponent(waMsg)}`, '_blank')
     }
     setSaving(false)
   }
@@ -61,7 +64,9 @@ export default function Subcontractors({ project, onBack }) {
   const sendWhatsApp = (sub) => {
     const phone = sub.users?.phone?.replace(/^0/, '') || ''
     const name = sub.users?.name || ''
-    const msg = `שלום ${name}, קוד הגישה שלך למערכת: ${sub.users?.access_code || ''}`
+    const code = sub.users?.access_code || ''
+    const appUrl = 'https://hvac-manager-five.vercel.app'
+    const msg = `שלום ${name} 👋\n\nהנה פרטי הכניסה שלך למערכת:\n\n🔗 כניסה לאפליקציה:\n${appUrl}\n\n🔑 קוד גישה: ${code}\n\nהקוד תקף ל-48 שעות.`
     window.open(`https://wa.me/972${phone}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
