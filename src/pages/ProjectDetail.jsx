@@ -11,6 +11,7 @@ export default function ProjectDetail({ project, user, onBack }) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title:'', priority:'medium', due_date:'', assignee_id:'' })
   const [saving, setSaving] = useState(false)
+  const [editTask, setEditTask] = useState(null) // משימה בעריכה
 
   useEffect(() => { fetchAll() }, [])
 
@@ -28,18 +29,36 @@ export default function ProjectDetail({ project, user, onBack }) {
     if (!form.title.trim()) return
     setSaving(true)
     await supabase.from('tasks').insert([{
-      title: form.title,
-      priority: form.priority,
-      due_date: form.due_date || null,
+      title: form.title, priority: form.priority, due_date: form.due_date || null,
       assignee_id: form.assignee_id || user.id,
       assignee_type: form.assignee_id ? 'subcontractor' : 'internal',
-      project_id: project.id,
-      status: 'open'
+      project_id: project.id, status: 'open'
     }])
     setForm({ title:'', priority:'medium', due_date:'', assignee_id:'' })
     setShowAdd(false)
     await fetchAll()
     setSaving(false)
+  }
+
+  const saveEditTask = async () => {
+    if (!editTask.title.trim()) return
+    setSaving(true)
+    await supabase.from('tasks').update({
+      title: editTask.title, priority: editTask.priority,
+      due_date: editTask.due_date || null,
+      assignee_id: editTask.assignee_id || user.id,
+      assignee_type: editTask.assignee_id ? 'subcontractor' : 'internal'
+    }).eq('id', editTask.id)
+    setEditTask(null)
+    await fetchAll()
+    setSaving(false)
+  }
+
+  const deleteTask = async (id) => {
+    if (!window.confirm('למחוק משימה זו?')) return
+    await supabase.from('tasks').delete().eq('id', id)
+    setEditTask(null)
+    await fetchAll()
   }
 
   const toggle = async (task) => {
@@ -51,7 +70,6 @@ export default function ProjectDetail({ project, user, onBack }) {
   const pri = (p) => ({ high:{bg:'#FDF0ED',color:'#C0392B',text:'דחוף'}, medium:{bg:'#FEF3E2',color:'#C07B2A',text:'בינוני'}, low:{bg:'#E8F5EF',color:'#2D4A3E',text:'נמוך'} }[p] || {bg:'#F5F2EC',color:'#9B9280',text:p})
   const stMap = { active:{text:'פעיל',bg:'#E8F5EF',color:'#2D4A3E'}, risk:{text:'⚠ סיכון',bg:'#FDF0ED',color:'#C0392B'}, planning:{text:'תכנון',bg:'#FEF3E2',color:'#C07B2A'}, done:{text:'הושלם',bg:'#E8F5EF',color:'#2D4A3E'}, paused:{text:'מושהה',bg:'#F5F2EC',color:'#9B9280'} }
   const st = stMap[project.status] || {text:project.status, bg:'#F5F2EC', color:'#9B9280'}
-
   const open = tasks.filter(t => t.status !== 'done')
   const done = tasks.filter(t => t.status === 'done')
   const late = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done')
@@ -74,21 +92,27 @@ export default function ProjectDetail({ project, user, onBack }) {
     tab:  a => ({ flex:1, padding:'8px 4px', textAlign:'center', fontSize:'12px', fontWeight:'500', cursor:'pointer', borderRadius:'10px', border:'none', background:a?'#2D4A3E':'transparent', color:a?'#fff':'#9B9280', fontFamily:'Heebo, sans-serif' }),
     body:   { padding:'12px 16px' },
     card:   { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', overflow:'hidden', marginBottom:'10px' },
-    ti:     { padding:'12px 14px', borderBottom:'1px solid #F5F2EC', display:'flex', alignItems:'flex-start', gap:'10px' },
-    chk:  d => ({ width:'22px', height:'22px', borderRadius:'50%', border:d?'none':'2px solid #D4CFCA', background:d?'#2D4A3E':'transparent', flexShrink:0, marginTop:'2px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:'12px', color:'#fff' }),
+    ti:     { padding:'12px 14px', borderBottom:'1px solid #F5F2EC', display:'flex', alignItems:'flex-start', gap:'10px', cursor:'pointer' },
+    chk:  d => ({ width:'22px', height:'22px', borderRadius:'50%', border:d?'none':'2px solid #D4CFCA', background:d?'#2D4A3E':'transparent', flexShrink:0, marginTop:'2px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#fff' }),
     ttl:  d => ({ fontSize:'14px', color:d?'#B5AFA6':'#1C2B20', textDecoration:d?'line-through':'none', marginBottom:'5px' }),
     cps:    { display:'flex', gap:'5px', flexWrap:'wrap' },
     cp:  (bg,cl) => ({ fontSize:'10px', padding:'3px 8px', borderRadius:'20px', fontWeight:'500', background:bg, color:cl }),
     dc:  od => ({ fontSize:'10px', padding:'3px 8px', borderRadius:'20px', background:od?'#FDF0ED':'#F5F2EC', color:od?'#C0392B':'#6B6457' }),
+    editIcon: { fontSize:'14px', color:'#B5AFA6', marginRight:'auto', padding:'4px' },
     form:   { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', padding:'14px', marginBottom:'10px' },
     lbl:    { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
     inp:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
     sel:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
-    save:   { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    save:   { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', marginBottom:'8px' },
+    del:    { width:'100%', padding:'11px', background:'#FDF0ED', border:'1px solid #F4C9B7', borderRadius:'12px', color:'#C0392B', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
     add:    { width:'100%', padding:'12px', background:'#fff', border:'2px dashed #D4CFCA', borderRadius:'14px', fontSize:'13px', fontWeight:'500', color:'#9B9280', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', fontFamily:'Heebo, sans-serif' },
     empty:  { textAlign:'center', padding:'32px 24px', color:'#9B9280' },
     soon:   { textAlign:'center', padding:'40px 24px', color:'#9B9280', fontSize:'13px' },
     slbl:   { fontSize:'12px', fontWeight:'600', color:'#9B9280', marginBottom:'6px' },
+    modal:  { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' },
+    sheet:  { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'390px', padding:'16px 16px 32px', maxHeight:'85vh', overflowY:'auto' },
+    handle: { width:'40px', height:'4px', background:'#D4CFCA', borderRadius:'2px', margin:'0 auto 14px' },
+    shTitle:{ fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'14px' },
   }
 
   return (
@@ -138,9 +162,7 @@ export default function ProjectDetail({ project, user, onBack }) {
                 <div style={c.lbl}>שייך ל</div>
                 <select style={c.sel} value={form.assignee_id} onChange={e=>setForm({...form,assignee_id:e.target.value})}>
                   <option value="">אני (מנהל פרויקט)</option>
-                  {subs.map(s=>(
-                    <option key={s.users.id} value={s.users.id}>{s.users.name} — {s.users.specialty||s.users.company||'קבלן'}</option>
-                  ))}
+                  {subs.map(s=>(<option key={s.users.id} value={s.users.id}>{s.users.name} — {s.users.specialty||s.users.company||'קבלן'}</option>))}
                 </select>
                 <button style={c.save} onClick={addTask} disabled={saving}>{saving?'שומר...':'✓ הוסף משימה'}</button>
               </div>
@@ -161,8 +183,8 @@ export default function ProjectDetail({ project, user, onBack }) {
                       <div style={c.card}>
                         {open.map(t=>(
                           <div key={t.id} style={c.ti}>
-                            <div style={c.chk(false)} onClick={()=>toggle(t)}>○</div>
-                            <div style={{flex:1}}>
+                            <div style={c.chk(false)} onClick={e=>{e.stopPropagation();toggle(t)}}>○</div>
+                            <div style={{flex:1}} onClick={()=>setEditTask({...t})}>
                               <div style={c.ttl(false)}>{t.title}</div>
                               <div style={c.cps}>
                                 <span style={c.cp(pri(t.priority).bg,pri(t.priority).color)}>{pri(t.priority).text}</span>
@@ -170,6 +192,7 @@ export default function ProjectDetail({ project, user, onBack }) {
                                 {t.due_date && <span style={c.dc(new Date(t.due_date)<new Date())}>{t.due_date}</span>}
                               </div>
                             </div>
+                            <div style={c.editIcon} onClick={()=>setEditTask({...t})}>✏️</div>
                           </div>
                         ))}
                       </div>
@@ -179,8 +202,11 @@ export default function ProjectDetail({ project, user, onBack }) {
                       <div style={c.card}>
                         {done.map(t=>(
                           <div key={t.id} style={c.ti}>
-                            <div style={c.chk(true)} onClick={()=>toggle(t)}>✓</div>
-                            <div style={{flex:1}}><div style={c.ttl(true)}>{t.title}</div></div>
+                            <div style={c.chk(true)} onClick={e=>{e.stopPropagation();toggle(t)}}>✓</div>
+                            <div style={{flex:1}} onClick={()=>setEditTask({...t})}>
+                              <div style={c.ttl(true)}>{t.title}</div>
+                            </div>
+                            <div style={c.editIcon} onClick={()=>setEditTask({...t})}>✏️</div>
                           </div>
                         ))}
                       </div>
@@ -192,10 +218,42 @@ export default function ProjectDetail({ project, user, onBack }) {
             <button style={c.add} onClick={()=>setShowAdd(!showAdd)}>+ הוסף משימה</button>
           </>
         )}
-        {tab==='subs'     && <Subcontractors project={project} onBack={()=>setTab('tasks')} />}
+        {tab==='subs'     && <Subcontractors project={project} user={user} onBack={()=>setTab('tasks')} />}
         {tab==='bom'      && <BOM project={project} onBack={()=>setTab('tasks')} />}
         {tab==='meetings' && <div style={c.soon}><div style={{fontSize:'32px',marginBottom:'10px'}}>📅</div>מודול יומן — בקרוב</div>}
       </div>
+
+      {/* מודל עריכת משימה */}
+      {editTask && (
+        <div style={c.modal} onClick={e=>{if(e.target===e.currentTarget)setEditTask(null)}}>
+          <div style={c.sheet}>
+            <div style={c.handle}></div>
+            <div style={c.shTitle}>✏️ עריכת משימה</div>
+
+            <div style={c.lbl}>שם המשימה</div>
+            <input style={c.inp} value={editTask.title} onChange={e=>setEditTask({...editTask,title:e.target.value})} />
+
+            <div style={c.lbl}>עדיפות</div>
+            <select style={c.sel} value={editTask.priority} onChange={e=>setEditTask({...editTask,priority:e.target.value})}>
+              <option value="high">דחוף</option>
+              <option value="medium">בינוני</option>
+              <option value="low">נמוך</option>
+            </select>
+
+            <div style={c.lbl}>תאריך יעד</div>
+            <input style={c.inp} type="date" value={editTask.due_date||''} onChange={e=>setEditTask({...editTask,due_date:e.target.value})} />
+
+            <div style={c.lbl}>שייך ל</div>
+            <select style={c.sel} value={editTask.assignee_id||''} onChange={e=>setEditTask({...editTask,assignee_id:e.target.value})}>
+              <option value="">אני (מנהל פרויקט)</option>
+              {subs.map(s=>(<option key={s.users.id} value={s.users.id}>{s.users.name}</option>))}
+            </select>
+
+            <button style={c.save} onClick={saveEditTask} disabled={saving}>{saving?'שומר...':'✓ שמור שינויים'}</button>
+            <button style={c.del} onClick={()=>deleteTask(editTask.id)}>🗑️ מחק משימה</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
