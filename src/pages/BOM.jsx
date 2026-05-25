@@ -6,11 +6,14 @@ export default function BOM({ project, onBack }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [showUpload, setShowUpload] = useState(false)
-  const [showAddReceipt, setShowAddReceipt] = useState(null) // item שנבחר
+  const [showReceipt, setShowReceipt] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [suggestion, setSuggestion] = useState(null)
-  const [receipts, setReceipts] = useState([])
+  const [selItem, setSelItem] = useState('')
+  const [amount, setAmount] = useState('')
+  const [supplier, setSupplier] = useState('')
+  const [desc, setDesc] = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -27,120 +30,88 @@ export default function BOM({ project, onBack }) {
   const analyzeReceipt = async (file) => {
     setAnalyzing(true)
     setSuggestion(null)
-
     const base64 = await new Promise((res, rej) => {
       const r = new FileReader()
       r.onload = () => res(r.result.split(',')[1])
       r.onerror = rej
       r.readAsDataURL(file)
     })
-
-    const isImage = file.type.startsWith('image/')
-    const mediaType = isImage ? file.type : 'application/pdf'
-    const docType = isImage ? 'image' : 'document'
-
+    const isImg = file.type.startsWith('image/')
     const itemsList = items.map(i => `${i.part_number}: ${i.name}`).join('\n')
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: docType,
-              source: { type: 'base64', media_type: mediaType, data: base64 }
-            },
-            {
-              type: 'text',
-              text: `זוהי קבלה/חשבונית. 
-הנה רשימת הסעיפים בכתב הכמויות של הפרויקט:
-${itemsList}
-
-תחזיר JSON בלבד:
-{
-  "supplier": "שם הספק מהקבלה",
-  "amount": סכום כולל כמספר,
-  "description": "תיאור קצר של מה שנרכש",
-  "suggested_section": "מספר הסעיף המתאים ביותר מהרשימה למעלה, או null אם לא ברור",
-  "confidence": "high/medium/low"
-}`
-            }
-          ]
-        }]
-      })
-    })
-
-    const data = await response.json()
-    const text = data.content?.[0]?.text || ''
-    const clean = text.replace(/```json|```/g, '').trim()
     try {
-      const parsed = JSON.parse(clean)
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: [
+            { type: isImg ? 'image' : 'document', source: { type: 'base64', media_type: file.type, data: base64 } },
+            { type: 'text', text: `קבלה/חשבונית. סעיפי כתב כמויות:\n${itemsList}\n\nJSON בלבד:\n{"supplier":"ספק","amount":0,"description":"תיאור","suggested_section":"סעיף או null","confidence":"high/medium/low"}` }
+          ]}]
+        })
+      })
+      const d = await res.json()
+      const parsed = JSON.parse(d.content?.[0]?.text?.replace(/```json|```/g,'').trim() || '{}')
       setSuggestion(parsed)
-    } catch {
-      setSuggestion(null)
-    }
+      if (parsed.suggested_section) {
+        const found = items.find(i => i.part_number === parsed.suggested_section)
+        if (found) setSelItem(found.id)
+      }
+      setAmount(parsed.amount?.toString() || '')
+      setSupplier(parsed.supplier || '')
+      setDesc(parsed.description || '')
+    } catch { setSuggestion(null) }
     setAnalyzing(false)
   }
 
-  const saveReceipt = async (itemId, amount, supplier, description) => {
+  const saveReceipt = async () => {
+    if (!selItem) { alert('בחר סעיף'); return }
+    const item = items.find(i => i.id === selItem)
+    const note = `\n${supplier} — ${desc} — ₪${amount}`
     await supabase.from('bom_items').update({
       supplier,
-      notes: (items.find(i=>i.id===itemId)?.notes || '') + `\n${description} — ₪${amount}`
-    }).eq('id', itemId)
+      notes: ((item?.notes || '') + note).trim()
+    }).eq('id', selItem)
     await fetchAll()
-    setShowAddReceipt(null)
+    setShowReceipt(false)
     setReceiptFile(null)
     setSuggestion(null)
+    setSelItem(''); setAmount(''); setSupplier(''); setDesc('')
   }
 
   if (showUpload) return (
-    <BOMUpload
-      project={project}
-      onBack={() => setShowUpload(false)}
-      onDone={() => { setShowUpload(false); fetchAll() }}
-    />
+    <BOMUpload project={project} onBack={()=>setShowUpload(false)} onDone={()=>{ setShowUpload(false); fetchAll() }} />
   )
 
   const s = {
     app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
     top: { background:'#2D4A3E', padding:'14px 16px', display:'flex', alignItems:'center', gap:'10px' },
-    back: { width:'34px', height:'34px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'none', fontSize:'18px', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' },
+    back: { width:'34px', height:'34px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'none', fontSize:'18px', color:'#fff', cursor:'pointer' },
     topInfo: { flex:1 },
     topTitle: { fontSize:'15px', fontWeight:'600', color:'#fff' },
     topSub: { fontSize:'11px', color:'rgba(255,255,255,0.6)', marginTop:'1px' },
     body: { padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px' },
-    uploadBtn: { width:'100%', padding:'13px', background:'#2D4A3E', border:'none', borderRadius:'14px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' },
-    receiptBtn: { width:'100%', padding:'13px', background:'#F4A261', border:'none', borderRadius:'14px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' },
+    btn1: { width:'100%', padding:'13px', background:'#2D4A3E', border:'none', borderRadius:'14px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    btn2: { width:'100%', padding:'13px', background:'#F4A261', border:'none', borderRadius:'14px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
     card: { background:'#fff', borderRadius:'18px', border:'1px solid #E8E4DC', overflow:'hidden' },
-    itemRow: { padding:'12px 14px', borderBottom:'1px solid #F5F2EC', cursor:'pointer' },
-    sectionNum: { fontSize:'11px', fontWeight:'600', color:'#2D4A3E', background:'#E8F5EF', padding:'3px 8px', borderRadius:'8px', display:'inline-block', marginBottom:'4px' },
-    itemName: { fontSize:'13px', color:'#1C2B20', lineHeight:'1.4', marginBottom:'4px' },
-    itemMeta: { fontSize:'11px', color:'#9B9280' },
-    emptyWrap: { textAlign:'center', padding:'32px 24px', color:'#9B9280' },
+    row: (last) => ({ padding:'12px 14px', borderBottom: last?'none':'1px solid #F5F2EC' }),
+    secNum: { fontSize:'11px', fontWeight:'600', color:'#2D4A3E', background:'#E8F5EF', padding:'3px 8px', borderRadius:'8px', display:'inline-block', marginBottom:'4px' },
+    name: { fontSize:'13px', color:'#1C2B20', lineHeight:'1.4' },
+    note: { fontSize:'11px', color:'#6B6457', marginTop:'2px', whiteSpace:'pre-line' },
+    empty: { textAlign:'center', padding:'32px 24px', color:'#9B9280' },
     modal: { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' },
-    sheet: { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'390px', padding:'16px', maxHeight:'85vh', overflowY:'auto' },
+    sheet: { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'390px', padding:'16px 16px 32px', maxHeight:'85vh', overflowY:'auto' },
     handle: { width:'40px', height:'4px', background:'#D4CFCA', borderRadius:'2px', margin:'0 auto 14px' },
-    sheetTitle: { fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'4px' },
-    sheetSub: { fontSize:'12px', color:'#9B9280', marginBottom:'14px' },
-    uploadArea: { border:'2px dashed #D4CFCA', borderRadius:'14px', padding:'20px', textAlign:'center', cursor:'pointer', background:'#F9F7F4', marginBottom:'12px' },
-    suggBox: { background:'#E8F5EF', borderRadius:'14px', padding:'12px', marginBottom:'12px', border:'1px solid #B7DCCA' },
-    suggTitle: { fontSize:'13px', fontWeight:'600', color:'#2D4A3E', marginBottom:'6px' },
-    suggRow: { fontSize:'12px', color:'#1C2B20', marginBottom:'3px' },
-    confChip: (c) => ({ fontSize:'10px', padding:'2px 8px', borderRadius:'20px', fontWeight:'500', background: c==='high'?'#E8F5EF':c==='medium'?'#FEF3E2':'#FDF0ED', color: c==='high'?'#2D4A3E':c==='medium'?'#C07B2A':'#C0392B' }),
-    sectionSel: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
-    inp: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    stitle: { fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'4px' },
+    ssub: { fontSize:'12px', color:'#9B9280', marginBottom:'14px' },
+    upArea: { border:'2px dashed #D4CFCA', borderRadius:'14px', padding:'20px', textAlign:'center', cursor:'pointer', background:'#F9F7F4', marginBottom:'12px' },
+    sugg: { background:'#E8F5EF', borderRadius:'14px', padding:'12px', marginBottom:'12px', border:'1px solid #B7DCCA' },
     lbl: { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
-    saveBtn: { width:'100%', padding:'12px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    sel: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    inp: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    save: { width:'100%', padding:'12px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
   }
-
-  const [selItem, setSelItem] = useState('')
-  const [manualAmount, setManualAmount] = useState('')
-  const [manualSupplier, setManualSupplier] = useState('')
-  const [manualDesc, setManualDesc] = useState('')
 
   return (
     <div style={s.app}>
@@ -153,107 +124,84 @@ ${itemsList}
       </div>
 
       <div style={s.body}>
-        <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
-          📄 {items.length > 0 ? 'עדכן כתב כמויות' : 'העלה כתב כמויות'}
+        <button style={s.btn1} onClick={()=>setShowUpload(true)}>
+          📄 {items.length>0?'עדכן כתב כמויות':'העלה כתב כמויות'}
         </button>
-
-        {items.length > 0 && (
-          <button style={s.receiptBtn} onClick={() => setShowAddReceipt(true)}>
+        {items.length>0 && (
+          <button style={s.btn2} onClick={()=>setShowReceipt(true)}>
             📸 הוסף קבלה / חשבונית
           </button>
         )}
 
-        {loading ? (
-          <div style={s.emptyWrap}>טוען...</div>
-        ) : items.length === 0 ? (
-          <div style={s.emptyWrap}>
-            <div style={{fontSize:'36px', marginBottom:'10px'}}>📋</div>
-            <div style={{fontSize:'14px', fontWeight:'600', color:'#1C2B20', marginBottom:'4px'}}>אין כתב כמויות עדיין</div>
+        {loading ? <div style={s.empty}>טוען...</div>
+        : items.length===0 ? (
+          <div style={s.empty}>
+            <div style={{fontSize:'36px',marginBottom:'10px'}}>📋</div>
+            <div style={{fontSize:'14px',fontWeight:'600',color:'#1C2B20',marginBottom:'4px'}}>אין כתב כמויות עדיין</div>
             <div>לחץ למעלה להעלאת כתב כמויות</div>
           </div>
         ) : (
           <div style={s.card}>
-            {items.map((item, i) => (
-              <div key={item.id} style={{...s.itemRow, borderBottom: i===items.length-1?'none':'1px solid #F5F2EC'}}>
-                <span style={s.sectionNum}>{item.part_number}</span>
-                <div style={s.itemName}>{item.name}</div>
-                {item.notes && item.notes !== item.part_number && (
-                  <div style={{fontSize:'11px', color:'#6B6457', marginTop:'2px', whiteSpace:'pre-line'}}>
-                    {item.notes.replace(item.part_number, '').trim()}
-                  </div>
+            {items.map((item,i)=>(
+              <div key={item.id} style={s.row(i===items.length-1)}>
+                <span style={s.secNum}>{item.part_number}</span>
+                <div style={s.name}>{item.name}</div>
+                {item.notes && item.notes!==item.part_number && (
+                  <div style={s.note}>{item.notes.replace(item.part_number,'').trim()}</div>
                 )}
-                <div style={s.itemMeta}>
-                  {item.unit && `יחידה: ${item.unit}`}
-                  {item.quantity && ` · כמות: ${item.quantity}`}
-                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {showAddReceipt && (
-        <div style={s.modal} onClick={e => { if(e.target===e.currentTarget){setShowAddReceipt(null);setReceiptFile(null);setSuggestion(null)} }}>
+      {showReceipt && (
+        <div style={s.modal} onClick={e=>{if(e.target===e.currentTarget){setShowReceipt(false);setReceiptFile(null);setSuggestion(null)}}}>
           <div style={s.sheet}>
             <div style={s.handle}></div>
-            <div style={s.sheetTitle}>הוספת קבלה / חשבונית</div>
-            <div style={s.sheetSub}>העלה תמונה או PDF — AI ישייך לסעיף הנכון</div>
+            <div style={s.stitle}>הוספת קבלה / חשבונית</div>
+            <div style={s.ssub}>העלה תמונה או PDF — AI ישייך לסעיף הנכון</div>
 
-            <label style={s.uploadArea}>
-              <input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e => {
-                const f = e.target.files[0]
-                if (f) { setReceiptFile(f); analyzeReceipt(f) }
-              }} />
-              <div style={{fontSize:'28px', marginBottom:'6px'}}>📸</div>
-              <div style={{fontSize:'13px', color:'#9B9280'}}>
-                {receiptFile ? `✅ ${receiptFile.name}` : 'לחץ לבחירת תמונה או PDF'}
+            <label style={s.upArea}>
+              <input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e=>{
+                const f=e.target.files[0]
+                if(f){setReceiptFile(f);analyzeReceipt(f)}
+              }}/>
+              <div style={{fontSize:'28px',marginBottom:'6px'}}>📸</div>
+              <div style={{fontSize:'13px',color:'#9B9280'}}>
+                {receiptFile?`✅ ${receiptFile.name}`:'לחץ לבחירת תמונה או PDF'}
               </div>
             </label>
 
-            {analyzing && (
-              <div style={{textAlign:'center', color:'#2D4A3E', fontSize:'13px', marginBottom:'12px'}}>
-                ⏳ מנתח קבלה...
-              </div>
-            )}
+            {analyzing && <div style={{textAlign:'center',color:'#2D4A3E',fontSize:'13px',marginBottom:'12px'}}>⏳ מנתח קבלה...</div>}
 
             {suggestion && (
-              <div style={s.suggBox}>
-                <div style={s.suggTitle}>💡 הצעת AI</div>
-                {suggestion.supplier && <div style={s.suggRow}>🏪 ספק: <strong>{suggestion.supplier}</strong></div>}
-                {suggestion.amount && <div style={s.suggRow}>💰 סכום: <strong>₪{suggestion.amount.toLocaleString()}</strong></div>}
-                {suggestion.description && <div style={s.suggRow}>📝 {suggestion.description}</div>}
-                {suggestion.confidence && <span style={s.confChip(suggestion.confidence)}>
-                  ביטחון: {suggestion.confidence==='high'?'גבוה':suggestion.confidence==='medium'?'בינוני':'נמוך'}
-                </span>}
+              <div style={s.sugg}>
+                <div style={{fontSize:'13px',fontWeight:'600',color:'#2D4A3E',marginBottom:'6px'}}>💡 הצעת AI</div>
+                {suggestion.supplier && <div style={{fontSize:'12px',color:'#1C2B20',marginBottom:'3px'}}>🏪 ספק: <strong>{suggestion.supplier}</strong></div>}
+                {suggestion.amount && <div style={{fontSize:'12px',color:'#1C2B20',marginBottom:'3px'}}>💰 סכום: <strong>₪{Number(suggestion.amount).toLocaleString()}</strong></div>}
+                {suggestion.description && <div style={{fontSize:'12px',color:'#1C2B20'}}>📝 {suggestion.description}</div>}
               </div>
             )}
 
             <div style={s.lbl}>שייך לסעיף</div>
-            <select style={s.sectionSel} value={selItem} onChange={e=>setSelItem(e.target.value)}>
+            <select style={s.sel} value={selItem} onChange={e=>setSelItem(e.target.value)}>
               <option value="">בחר סעיף...</option>
-              {items.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.part_number} — {item.name?.slice(0,40)}
-                </option>
+              {items.map(item=>(
+                <option key={item.id} value={item.id}>{item.part_number} — {item.name?.slice(0,40)}</option>
               ))}
             </select>
 
             <div style={s.lbl}>ספק</div>
-            <input style={s.inp} placeholder="שם הספק" value={manualSupplier || suggestion?.supplier || ''} onChange={e=>setManualSupplier(e.target.value)} />
+            <input style={s.inp} placeholder="שם הספק" value={supplier} onChange={e=>setSupplier(e.target.value)} />
 
             <div style={s.lbl}>סכום (₪)</div>
-            <input style={s.inp} type="number" placeholder="0" value={manualAmount || suggestion?.amount || ''} onChange={e=>setManualAmount(e.target.value)} />
+            <input style={s.inp} type="number" placeholder="0" value={amount} onChange={e=>setAmount(e.target.value)} />
 
             <div style={s.lbl}>תיאור</div>
-            <input style={s.inp} placeholder="מה נרכש?" value={manualDesc || suggestion?.description || ''} onChange={e=>setManualDesc(e.target.value)} />
+            <input style={s.inp} placeholder="מה נרכש?" value={desc} onChange={e=>setDesc(e.target.value)} />
 
-            <button style={s.saveBtn} onClick={() => {
-              const itemId = selItem || items.find(i=>i.part_number===suggestion?.suggested_section)?.id
-              if (!itemId) { alert('בחר סעיף'); return }
-              saveReceipt(itemId, manualAmount||suggestion?.amount, manualSupplier||suggestion?.supplier, manualDesc||suggestion?.description)
-            }}>
-              💾 שמור קבלה
-            </button>
+            <button style={s.save} onClick={saveReceipt}>💾 שמור קבלה</button>
           </div>
         </div>
       )}
