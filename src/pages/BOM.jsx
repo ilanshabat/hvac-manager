@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import BOMUpload from './BOMUpload'
 
 export default function BOM({ project, onBack }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showUpload, setShowUpload] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
-  const [receiptFile, setReceiptFile] = useState(null)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [suggestion, setSuggestion] = useState(null)
-  const [selItem, setSelItem] = useState('')
-  const [amount, setAmount] = useState('')
+  const [showAddSection, setShowAddSection] = useState(false)
+
+  // טופס קבלה
   const [supplier, setSupplier] = useState('')
+  const [amount, setAmount] = useState('')
   const [desc, setDesc] = useState('')
+  const [selItem, setSelItem] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // טופס סעיף חדש
+  const [secNum, setSecNum] = useState('')
+  const [secName, setSecName] = useState('')
+  const [secUnit, setSecUnit] = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -27,62 +31,37 @@ export default function BOM({ project, onBack }) {
     setLoading(false)
   }
 
-  const analyzeReceipt = async (file) => {
-    setAnalyzing(true)
-    setSuggestion(null)
-    const base64 = await new Promise((res, rej) => {
-      const r = new FileReader()
-      r.onload = () => res(r.result.split(',')[1])
-      r.onerror = rej
-      r.readAsDataURL(file)
-    })
-    const isImg = file.type.startsWith('image/')
-    const itemsList = items.map(i => `${i.part_number}: ${i.name}`).join('\n')
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: [
-            { type: isImg ? 'image' : 'document', source: { type: 'base64', media_type: file.type, data: base64 } },
-            { type: 'text', text: `קבלה/חשבונית. סעיפי כתב כמויות:\n${itemsList}\n\nJSON בלבד:\n{"supplier":"ספק","amount":0,"description":"תיאור","suggested_section":"סעיף או null","confidence":"high/medium/low"}` }
-          ]}]
-        })
-      })
-      const d = await res.json()
-      const parsed = JSON.parse(d.content?.[0]?.text?.replace(/```json|```/g,'').trim() || '{}')
-      setSuggestion(parsed)
-      if (parsed.suggested_section) {
-        const found = items.find(i => i.part_number === parsed.suggested_section)
-        if (found) setSelItem(found.id)
-      }
-      setAmount(parsed.amount?.toString() || '')
-      setSupplier(parsed.supplier || '')
-      setDesc(parsed.description || '')
-    } catch { setSuggestion(null) }
-    setAnalyzing(false)
+  const addSection = async () => {
+    if (!secName.trim()) return
+    setSaving(true)
+    await supabase.from('bom_items').insert([{
+      project_id: project.id,
+      name: secName,
+      part_number: secNum || '-',
+      unit: secUnit,
+      status: 'pending',
+      is_critical: false
+    }])
+    setSecNum(''); setSecName(''); setSecUnit('')
+    setShowAddSection(false)
+    await fetchAll()
+    setSaving(false)
   }
 
   const saveReceipt = async () => {
-    if (!selItem) { alert('בחר סעיף'); return }
+    if (!selItem || !amount) { alert('בחר סעיף והזן סכום'); return }
+    setSaving(true)
     const item = items.find(i => i.id === selItem)
-    const note = `\n${supplier} — ${desc} — ₪${amount}`
+    const note = `${supplier} — ${desc} — ₪${amount}`
     await supabase.from('bom_items').update({
-      supplier,
-      notes: ((item?.notes || '') + note).trim()
+      supplier: supplier || item?.supplier,
+      notes: ((item?.notes || '') + '\n' + note).trim()
     }).eq('id', selItem)
-    await fetchAll()
+    setSupplier(''); setAmount(''); setDesc(''); setSelItem('')
     setShowReceipt(false)
-    setReceiptFile(null)
-    setSuggestion(null)
-    setSelItem(''); setAmount(''); setSupplier(''); setDesc('')
+    await fetchAll()
+    setSaving(false)
   }
-
-  if (showUpload) return (
-    <BOMUpload project={project} onBack={()=>setShowUpload(false)} onDone={()=>{ setShowUpload(false); fetchAll() }} />
-  )
 
   const s = {
     app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
@@ -98,19 +77,20 @@ export default function BOM({ project, onBack }) {
     row: (last) => ({ padding:'12px 14px', borderBottom: last?'none':'1px solid #F5F2EC' }),
     secNum: { fontSize:'11px', fontWeight:'600', color:'#2D4A3E', background:'#E8F5EF', padding:'3px 8px', borderRadius:'8px', display:'inline-block', marginBottom:'4px' },
     name: { fontSize:'13px', color:'#1C2B20', lineHeight:'1.4' },
-    note: { fontSize:'11px', color:'#6B6457', marginTop:'2px', whiteSpace:'pre-line' },
+    note: { fontSize:'11px', color:'#6B6457', marginTop:'4px', whiteSpace:'pre-line', background:'#F9F7F4', borderRadius:'8px', padding:'6px 8px' },
     empty: { textAlign:'center', padding:'32px 24px', color:'#9B9280' },
+    formCard: { background:'#fff', borderRadius:'18px', border:'1px solid #E8E4DC', padding:'16px', marginBottom:'10px' },
+    lbl: { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
+    inp: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    sel: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    row2: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' },
+    save: { width:'100%', padding:'12px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    cancel: { width:'100%', padding:'11px', background:'#F5F2EC', border:'none', borderRadius:'12px', color:'#6B6457', fontSize:'13px', fontWeight:'500', cursor:'pointer', fontFamily:'Heebo, sans-serif', marginTop:'8px' },
     modal: { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' },
     sheet: { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'390px', padding:'16px 16px 32px', maxHeight:'85vh', overflowY:'auto' },
     handle: { width:'40px', height:'4px', background:'#D4CFCA', borderRadius:'2px', margin:'0 auto 14px' },
     stitle: { fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'4px' },
-    ssub: { fontSize:'12px', color:'#9B9280', marginBottom:'14px' },
-    upArea: { border:'2px dashed #D4CFCA', borderRadius:'14px', padding:'20px', textAlign:'center', cursor:'pointer', background:'#F9F7F4', marginBottom:'12px' },
-    sugg: { background:'#E8F5EF', borderRadius:'14px', padding:'12px', marginBottom:'12px', border:'1px solid #B7DCCA' },
-    lbl: { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
-    sel: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
-    inp: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
-    save: { width:'100%', padding:'12px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    ssub: { fontSize:'12px', color:'#9B9280', marginBottom:'16px' },
   }
 
   return (
@@ -118,18 +98,42 @@ export default function BOM({ project, onBack }) {
       <div style={s.top}>
         <button style={s.back} onClick={onBack}>→</button>
         <div style={s.topInfo}>
-          <div style={s.topTitle}>רכש וכתב כמויות</div>
+          <div style={s.topTitle}>רכש וחשבוניות</div>
           <div style={s.topSub}>{project.name}</div>
         </div>
       </div>
 
       <div style={s.body}>
-        <button style={s.btn1} onClick={()=>setShowUpload(true)}>
-          📄 {items.length>0?'עדכן כתב כמויות':'העלה כתב כמויות'}
+
+        {/* טופס סעיף חדש */}
+        {showAddSection && (
+          <div style={s.formCard}>
+            <div style={{fontSize:'14px', fontWeight:'600', color:'#1C2B20', marginBottom:'12px'}}>+ סעיף חדש</div>
+            <div style={s.row2}>
+              <div>
+                <div style={s.lbl}>מספר סעיף</div>
+                <input style={{...s.inp, marginBottom:0}} placeholder="15.01.0001" value={secNum} onChange={e=>setSecNum(e.target.value)} />
+              </div>
+              <div>
+                <div style={s.lbl}>יחידה</div>
+                <input style={{...s.inp, marginBottom:0}} placeholder="קומפ׳/מ״ר" value={secUnit} onChange={e=>setSecUnit(e.target.value)} />
+              </div>
+            </div>
+            <div style={{height:'10px'}}></div>
+            <div style={s.lbl}>תיאור הסעיף</div>
+            <input style={s.inp} placeholder="תיאור העבודה..." value={secName} onChange={e=>setSecName(e.target.value)} />
+            <button style={s.save} onClick={addSection} disabled={saving}>{saving?'שומר...':'✓ הוסף סעיף'}</button>
+            <button style={s.cancel} onClick={()=>setShowAddSection(false)}>ביטול</button>
+          </div>
+        )}
+
+        <button style={s.btn1} onClick={()=>setShowAddSection(!showAddSection)}>
+          {showAddSection ? '✕ ביטול' : '+ הוסף סעיף'}
         </button>
+
         {items.length>0 && (
           <button style={s.btn2} onClick={()=>setShowReceipt(true)}>
-            📸 הוסף קבלה / חשבונית
+            📄 הוסף קבלה / חשבונית
           </button>
         )}
 
@@ -137,8 +141,8 @@ export default function BOM({ project, onBack }) {
         : items.length===0 ? (
           <div style={s.empty}>
             <div style={{fontSize:'36px',marginBottom:'10px'}}>📋</div>
-            <div style={{fontSize:'14px',fontWeight:'600',color:'#1C2B20',marginBottom:'4px'}}>אין כתב כמויות עדיין</div>
-            <div>לחץ למעלה להעלאת כתב כמויות</div>
+            <div style={{fontSize:'14px',fontWeight:'600',color:'#1C2B20',marginBottom:'4px'}}>אין סעיפים עדיין</div>
+            <div>לחץ "+ הוסף סעיף" כדי להתחיל</div>
           </div>
         ) : (
           <div style={s.card}>
@@ -146,8 +150,9 @@ export default function BOM({ project, onBack }) {
               <div key={item.id} style={s.row(i===items.length-1)}>
                 <span style={s.secNum}>{item.part_number}</span>
                 <div style={s.name}>{item.name}</div>
-                {item.notes && item.notes!==item.part_number && (
-                  <div style={s.note}>{item.notes.replace(item.part_number,'').trim()}</div>
+                {item.unit && <div style={{fontSize:'11px',color:'#9B9280',marginTop:'2px'}}>יחידה: {item.unit}</div>}
+                {item.notes && (
+                  <div style={s.note}>{item.notes}</div>
                 )}
               </div>
             ))}
@@ -155,36 +160,15 @@ export default function BOM({ project, onBack }) {
         )}
       </div>
 
+      {/* מודל הוספת קבלה */}
       {showReceipt && (
-        <div style={s.modal} onClick={e=>{if(e.target===e.currentTarget){setShowReceipt(false);setReceiptFile(null);setSuggestion(null)}}}>
+        <div style={s.modal} onClick={e=>{if(e.target===e.currentTarget){setShowReceipt(false)}}}>
           <div style={s.sheet}>
             <div style={s.handle}></div>
             <div style={s.stitle}>הוספת קבלה / חשבונית</div>
-            <div style={s.ssub}>העלה תמונה או PDF — AI ישייך לסעיף הנכון</div>
+            <div style={s.ssub}>מלא את הפרטים ושייך לסעיף</div>
 
-            <label style={s.upArea}>
-              <input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e=>{
-                const f=e.target.files[0]
-                if(f){setReceiptFile(f);analyzeReceipt(f)}
-              }}/>
-              <div style={{fontSize:'28px',marginBottom:'6px'}}>📸</div>
-              <div style={{fontSize:'13px',color:'#9B9280'}}>
-                {receiptFile?`✅ ${receiptFile.name}`:'לחץ לבחירת תמונה או PDF'}
-              </div>
-            </label>
-
-            {analyzing && <div style={{textAlign:'center',color:'#2D4A3E',fontSize:'13px',marginBottom:'12px'}}>⏳ מנתח קבלה...</div>}
-
-            {suggestion && (
-              <div style={s.sugg}>
-                <div style={{fontSize:'13px',fontWeight:'600',color:'#2D4A3E',marginBottom:'6px'}}>💡 הצעת AI</div>
-                {suggestion.supplier && <div style={{fontSize:'12px',color:'#1C2B20',marginBottom:'3px'}}>🏪 ספק: <strong>{suggestion.supplier}</strong></div>}
-                {suggestion.amount && <div style={{fontSize:'12px',color:'#1C2B20',marginBottom:'3px'}}>💰 סכום: <strong>₪{Number(suggestion.amount).toLocaleString()}</strong></div>}
-                {suggestion.description && <div style={{fontSize:'12px',color:'#1C2B20'}}>📝 {suggestion.description}</div>}
-              </div>
-            )}
-
-            <div style={s.lbl}>שייך לסעיף</div>
+            <div style={s.lbl}>שייך לסעיף *</div>
             <select style={s.sel} value={selItem} onChange={e=>setSelItem(e.target.value)}>
               <option value="">בחר סעיף...</option>
               {items.map(item=>(
@@ -195,13 +179,16 @@ export default function BOM({ project, onBack }) {
             <div style={s.lbl}>ספק</div>
             <input style={s.inp} placeholder="שם הספק" value={supplier} onChange={e=>setSupplier(e.target.value)} />
 
-            <div style={s.lbl}>סכום (₪)</div>
+            <div style={s.lbl}>סכום (₪) *</div>
             <input style={s.inp} type="number" placeholder="0" value={amount} onChange={e=>setAmount(e.target.value)} />
 
-            <div style={s.lbl}>תיאור</div>
-            <input style={s.inp} placeholder="מה נרכש?" value={desc} onChange={e=>setDesc(e.target.value)} />
+            <div style={s.lbl}>תיאור / הערות</div>
+            <input style={s.inp} placeholder="מה נרכש? מה הוזמן?" value={desc} onChange={e=>setDesc(e.target.value)} />
 
-            <button style={s.save} onClick={saveReceipt}>💾 שמור קבלה</button>
+            <button style={s.save} onClick={saveReceipt} disabled={saving}>
+              {saving?'שומר...':'💾 שמור קבלה'}
+            </button>
+            <button style={s.cancel} onClick={()=>setShowReceipt(false)}>ביטול</button>
           </div>
         </div>
       )}
