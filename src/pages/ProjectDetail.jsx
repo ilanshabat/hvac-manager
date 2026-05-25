@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import Subcontractors from './Subcontractors'
+import BOM from './BOM'
 
 export default function ProjectDetail({ project, user, onBack }) {
   const [tab, setTab] = useState('tasks')
@@ -192,7 +193,7 @@ export default function ProjectDetail({ project, user, onBack }) {
           </>
         )}
         {tab==='subs'     && <Subcontractors project={project} onBack={()=>setTab('tasks')} />}
-        {tab==='bom'      && <div style={c.soon}><div style={{fontSize:'32px',marginBottom:'10px'}}>📦</div>מודול רכש — בקרוב</div>}
+        {tab==='bom'      && <BOM project={project} onBack={()=>setTab('tasks')} />}
         {tab==='meetings' && <div style={c.soon}><div style={{fontSize:'32px',marginBottom:'10px'}}>📅</div>מודול יומן — בקרוב</div>}
       </div>
     </div>
