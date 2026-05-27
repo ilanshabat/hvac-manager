@@ -4,38 +4,49 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import SubcontractorLogin from './pages/SubcontractorLogin'
 import SubcontractorHome from './pages/SubcontractorHome'
+import UserManagement from './pages/UserManagement'
 
 function App() {
   const [user, setUser] = useState(null)
+  const [dbUser, setDbUser] = useState(null)
   const [subUser, setSubUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState('manager') // 'manager' or 'subcontractor'
+  const [mode, setMode] = useState('manager')
+  const [view, setView] = useState('dashboard')
 
   useEffect(() => {
-    // בדוק אם יש קבלן שמור
     const savedSub = localStorage.getItem('subUser')
     if (savedSub) {
       setSubUser(JSON.parse(savedSub))
       setMode('subcontractor')
-      setLoading(false)
       return
     }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    const savedManager = localStorage.getItem('managerUser')
+    const savedDbUser = localStorage.getItem('managerDbUser')
+    if (savedManager && savedDbUser) {
+      setUser(JSON.parse(savedManager))
+      setDbUser(JSON.parse(savedDbUser))
+    }
   }, [])
+
+  const handleLogin = async (authUser) => {
+    setUser(authUser)
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', authUser.email)
+      .single()
+    setDbUser(data || null)
+    localStorage.setItem('managerUser', JSON.stringify(authUser))
+    localStorage.setItem('managerDbUser', JSON.stringify(data || null))
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setDbUser(null)
+    setView('dashboard')
+    localStorage.removeItem('managerUser')
+    localStorage.removeItem('managerDbUser')
   }
 
   const handleSubLogin = (sub) => {
@@ -50,22 +61,14 @@ function App() {
     setMode('manager')
   }
 
-  if (loading) return (
-    <div style={{ minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', fontSize:'16px', color:'#2D4A3E' }}>
-      טוען...
-    </div>
-  )
-
-  // מצב קבלן
   if (mode === 'subcontractor') {
     if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} />
     return <SubcontractorHome subUser={subUser} onLogout={handleSubLogout} />
   }
 
-  // מצב מנהל
   if (!user) return (
     <div>
-      <Login onLogin={setUser} />
+      <Login onLogin={handleLogin} />
       <div style={{ textAlign:'center', marginTop:'-20px', paddingBottom:'20px', fontFamily:'Heebo, sans-serif' }}>
         <button
           onClick={() => setMode('subcontractor')}
@@ -77,7 +80,12 @@ function App() {
     </div>
   )
 
-  return <Dashboard user={user} onLogout={handleLogout} />
+  if (dbUser?.role === 'super_admin') {
+    if (view === 'users') return <UserManagement dbUser={dbUser} onBack={() => setView('dashboard')} />
+    return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} onManageUsers={() => setView('users')} />
+  }
+
+  return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} />
 }
 
 export default App

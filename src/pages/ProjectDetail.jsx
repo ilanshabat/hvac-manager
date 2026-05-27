@@ -11,7 +11,7 @@ export default function ProjectDetail({ project, user, onBack }) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title:'', priority:'medium', due_date:'', assignee_id:'' })
   const [saving, setSaving] = useState(false)
-  const [editTask, setEditTask] = useState(null) // משימה בעריכה
+  const [editTask, setEditTask] = useState(null)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -47,7 +47,8 @@ export default function ProjectDetail({ project, user, onBack }) {
       title: editTask.title, priority: editTask.priority,
       due_date: editTask.due_date || null,
       assignee_id: editTask.assignee_id || user.id,
-      assignee_type: editTask.assignee_id ? 'subcontractor' : 'internal'
+      assignee_type: editTask.assignee_id ? 'subcontractor' : 'internal',
+      notes: editTask.notes || null
     }).eq('id', editTask.id)
     setEditTask(null)
     await fetchAll()
@@ -98,10 +99,13 @@ export default function ProjectDetail({ project, user, onBack }) {
     cps:    { display:'flex', gap:'5px', flexWrap:'wrap' },
     cp:  (bg,cl) => ({ fontSize:'10px', padding:'3px 8px', borderRadius:'20px', fontWeight:'500', background:bg, color:cl }),
     dc:  od => ({ fontSize:'10px', padding:'3px 8px', borderRadius:'20px', background:od?'#FDF0ED':'#F5F2EC', color:od?'#C0392B':'#6B6457' }),
+    noteChip: { fontSize:'10px', padding:'3px 8px', borderRadius:'20px', background:'#FEF3E2', color:'#C07B2A', fontWeight:'500' },
     editIcon: { fontSize:'14px', color:'#B5AFA6', marginRight:'auto', padding:'4px' },
     form:   { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', padding:'14px', marginBottom:'10px' },
     lbl:    { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
     inp:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    textarea: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px', minHeight:'80px', resize:'vertical' },
+    textareaNote: { width:'100%', border:'1.5px solid #F4C77A', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#FFFBF0', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px', minHeight:'80px', resize:'vertical' },
     sel:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
     save:   { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', marginBottom:'8px' },
     del:    { width:'100%', padding:'11px', background:'#FDF0ED', border:'1px solid #F4C9B7', borderRadius:'12px', color:'#C0392B', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
@@ -190,6 +194,7 @@ export default function ProjectDetail({ project, user, onBack }) {
                                 <span style={c.cp(pri(t.priority).bg,pri(t.priority).color)}>{pri(t.priority).text}</span>
                                 {t.users && <span style={c.cp('#EEF2FF','#4338CA')}>{t.users.name}</span>}
                                 {t.due_date && <span style={c.dc(new Date(t.due_date)<new Date())}>{t.due_date}</span>}
+                                {t.notes && <span style={c.noteChip}>💬 הערה</span>}
                               </div>
                             </div>
                             <div style={c.editIcon} onClick={()=>setEditTask({...t})}>✏️</div>
@@ -205,6 +210,7 @@ export default function ProjectDetail({ project, user, onBack }) {
                             <div style={c.chk(true)} onClick={e=>{e.stopPropagation();toggle(t)}}>✓</div>
                             <div style={{flex:1}} onClick={()=>setEditTask({...t})}>
                               <div style={c.ttl(true)}>{t.title}</div>
+                              {t.notes && <div style={c.cps}><span style={c.noteChip}>💬 הערה</span></div>}
                             </div>
                             <div style={c.editIcon} onClick={()=>setEditTask({...t})}>✏️</div>
                           </div>
@@ -223,7 +229,6 @@ export default function ProjectDetail({ project, user, onBack }) {
         {tab==='meetings' && <div style={c.soon}><div style={{fontSize:'32px',marginBottom:'10px'}}>📅</div>מודול יומן — בקרוב</div>}
       </div>
 
-      {/* מודל עריכת משימה */}
       {editTask && (
         <div style={c.modal} onClick={e=>{if(e.target===e.currentTarget)setEditTask(null)}}>
           <div style={c.sheet}>
@@ -248,6 +253,13 @@ export default function ProjectDetail({ project, user, onBack }) {
               <option value="">אני (מנהל פרויקט)</option>
               {subs.map(s=>(<option key={s.users.id} value={s.users.id}>{s.users.name}</option>))}
             </select>
+
+            {editTask.notes && (
+              <div style={{background:'#FFFBF0', border:'1.5px solid #F4C77A', borderRadius:'12px', padding:'10px 14px', marginBottom:'10px'}}>
+                <div style={{fontSize:'11px', fontWeight:'600', color:'#C07B2A', marginBottom:'4px'}}>💬 הערת הקבלן</div>
+                <div style={{fontSize:'13px', color:'#1C2B20'}}>{editTask.notes}</div>
+              </div>
+            )}
 
             <button style={c.save} onClick={saveEditTask} disabled={saving}>{saving?'שומר...':'✓ שמור שינויים'}</button>
             <button style={c.del} onClick={()=>deleteTask(editTask.id)}>🗑️ מחק משימה</button>
