@@ -17,25 +17,36 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!dbUserProp) fetchUser()
-    fetchProjects()
-    fetchManagers()
+    if (dbUserProp) {
+      setDbUser(dbUserProp)
+      fetchProjects(dbUserProp)
+      fetchManagers()
+    } else {
+      fetchUser()
+    }
   }, [])
+
+  useEffect(() => {
+    if (dbUser && !dbUserProp) {
+      fetchProjects(dbUser)
+      fetchManagers()
+    }
+  }, [dbUser])
 
   const fetchUser = async () => {
     const { data } = await supabase.from('users').select('*').eq('email', user.email).single()
     setDbUser(data)
   }
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (currentDbUser) => {
+    const u = currentDbUser || dbUser
     let query = supabase.from('projects').select('*, tasks(id, status)').order('created_at', { ascending: false })
-    
-    // super_admin רואה הכל, project_manager רואה רק שלו
-    if (dbUserProp?.role !== 'super_admin') {
+
+    if (u?.role !== 'super_admin') {
       const { data: assignments } = await supabase
         .from('project_manager_assignments')
         .select('project_id')
-        .eq('user_id', dbUserProp?.id)
+        .eq('user_id', u?.id)
       const ids = assignments?.map(a => a.project_id) || []
       if (ids.length > 0) {
         query = query.in('id', ids)

@@ -12,12 +12,14 @@ function App() {
   const [subUser, setSubUser] = useState(null)
   const [mode, setMode] = useState('manager')
   const [view, setView] = useState('dashboard')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const savedSub = localStorage.getItem('subUser')
     if (savedSub) {
       setSubUser(JSON.parse(savedSub))
       setMode('subcontractor')
+      setLoading(false)
       return
     }
     const savedManager = localStorage.getItem('managerUser')
@@ -26,15 +28,16 @@ function App() {
       setUser(JSON.parse(savedManager))
       setDbUser(JSON.parse(savedDbUser))
     }
+    setLoading(false)
   }, [])
 
   const handleLogin = async (authUser) => {
-    setUser(authUser)
     const { data } = await supabase
       .from('users')
       .select('*')
       .eq('email', authUser.email)
       .single()
+    setUser(authUser)
     setDbUser(data || null)
     localStorage.setItem('managerUser', JSON.stringify(authUser))
     localStorage.setItem('managerDbUser', JSON.stringify(data || null))
@@ -60,6 +63,12 @@ function App() {
     setSubUser(null)
     setMode('manager')
   }
+
+  if (loading) return (
+    <div style={{ minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', fontSize:'16px', color:'#2D4A3E' }}>
+      טוען...
+    </div>
+  )
 
   if (mode === 'subcontractor') {
     if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} />
