@@ -9,28 +9,88 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   const [showAdd, setShowAdd] = useState(false)
   const [selectedProject, setSelectedProject] = useState(null)
   const [dbUser, setDbUser] = useState(dbUserProp || null)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState([])
+  const [managers, setManagers] = useState([])
+  const [showAssign, setShowAssign] = useState(false)
+  const [assignTo, setAssignTo] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!dbUserProp) fetchUser()
     fetchProjects()
+    fetchManagers()
   }, [])
 
   const fetchUser = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', user.email)
-      .single()
+    const { data } = await supabase.from('users').select('*').eq('email', user.email).single()
     setDbUser(data)
   }
 
   const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, tasks(id, status)')
-      .order('created_at', { ascending: false })
+    let query = supabase.from('projects').select('*, tasks(id, status)').order('created_at', { ascending: false })
+    
+    // super_admin רואה הכל, project_manager רואה רק שלו
+    if (dbUserProp?.role !== 'super_admin') {
+      const { data: assignments } = await supabase
+        .from('project_manager_assignments')
+        .select('project_id')
+        .eq('user_id', dbUserProp?.id)
+      const ids = assignments?.map(a => a.project_id) || []
+      if (ids.length > 0) {
+        query = query.in('id', ids)
+      } else {
+        setProjects([])
+        setLoading(false)
+        return
+      }
+    }
+
+    const { data, error } = await query
     if (!error) setProjects(data || [])
     setLoading(false)
+  }
+
+  const fetchManagers = async () => {
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .in('role', ['project_manager', 'super_admin'])
+    setManagers(data || [])
+  }
+
+  const toggleSelect = (id) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  }
+
+  const deleteSelected = async () => {
+    if (!window.confirm(`למחוק ${selected.length} פרויקטים?`)) return
+    setSaving(true)
+    for (const id of selected) {
+      await supabase.from('project_manager_assignments').delete().eq('project_id', id)
+      await supabase.from('tasks').delete().eq('project_id', id)
+      await supabase.from('projects').delete().eq('id', id)
+    }
+    setSelected([])
+    setSelectMode(false)
+    await fetchProjects()
+    setSaving(false)
+  }
+
+  const assignSelected = async () => {
+    if (!assignTo) return
+    setSaving(true)
+    for (const id of selected) {
+      await supabase.from('project_manager_assignments').upsert([{
+        project_id: id, user_id: assignTo
+      }])
+    }
+    setSelected([])
+    setSelectMode(false)
+    setShowAssign(false)
+    setAssignTo('')
+    setSaving(false)
+    alert('שויך בהצלחה!')
   }
 
   const statusLabel = (s) => ({
@@ -85,7 +145,8 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
     sectionHdr: { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' },
     sectionTitle: { fontSize:'13px', fontWeight:'600', color:'#6B6457' },
     sectionCount: { fontSize:'11px', color:'#9B9280' },
-    card: { background:'#fff', borderRadius:'20px', border:'1px solid #E8E4DC', padding:'16px', marginBottom:'12px', cursor:'pointer' },
+    selectBtn: { fontSize:'11px', color:'#2D4A3E', background:'#E8F5EF', border:'none', borderRadius:'8px', padding:'4px 10px', cursor:'pointer', fontFamily:'Heebo, sans-serif', fontWeight:'500' },
+    card: (sel) => ({ background: sel ? '#E8F5EF' : '#fff', borderRadius:'20px', border: sel ? '2px solid #2D4A3E' : '1px solid #E8E4DC', padding:'16px', marginBottom:'12px', cursor:'pointer', transition:'all 0.15s' }),
     cardTop: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'12px' },
     projName: { fontSize:'15px', fontWeight:'600', color:'#1C2B20', marginBottom:'3px' },
     projClient: { fontSize:'12px', color:'#9B9280' },
@@ -96,10 +157,18 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
     taskChip: { fontSize:'11px', color:'#6B6457', background:'#F5F2EC', padding:'3px 9px', borderRadius:'20px' },
     pctText: (st) => ({ fontSize:'12px', fontWeight:'600', color:barColor(st) }),
     emptyWrap: { textAlign:'center', padding:'40px 24px', color:'#9B9280' },
-    addBtn: { width:'100%', padding:'15px', background:'#2D4A3E', border:'none', borderRadius:'16px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
+    addBtn: { width:'100%', padding:'15px', background:'#2D4A3E', border:'none', borderRadius:'16px', color:'#fff', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', marginBottom:'10px' },
+    actionBar: { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', padding:'12px 14px', marginBottom:'12px', display:'flex', gap:'8px', alignItems:'center' },
+    actionCount: { fontSize:'13px', fontWeight:'600', color:'#2D4A3E', flex:1 },
+    delSelBtn: { padding:'8px 14px', background:'#FDF0ED', border:'1px solid #FECACA', borderRadius:'10px', fontSize:'12px', color:'#C0392B', cursor:'pointer', fontFamily:'Heebo, sans-serif', fontWeight:'500' },
+    assignSelBtn: { padding:'8px 14px', background:'#EEF2FF', border:'1px solid #C7D2FE', borderRadius:'10px', fontSize:'12px', color:'#4338CA', cursor:'pointer', fontFamily:'Heebo, sans-serif', fontWeight:'500' },
+    assignBox: { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', padding:'14px', marginBottom:'12px' },
+    assignTitle: { fontSize:'13px', fontWeight:'600', color:'#1C2B20', marginBottom:'10px' },
+    sel: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
+    assignBtn: { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
   }
 
-  if (showAdd) return <AddProject user={user} onBack={()=>setShowAdd(false)} onSaved={()=>{ setShowAdd(false); fetchProjects() }} />
+  if (showAdd) return <AddProject user={user} dbUser={dbUser} onBack={()=>setShowAdd(false)} onSaved={()=>{ setShowAdd(false); fetchProjects() }} />
   if (selectedProject) return <ProjectDetail project={selectedProject} user={user} onBack={()=>{ setSelectedProject(null); fetchProjects() }} />
 
   return (
@@ -136,8 +205,38 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
       <div style={s.body}>
         <div style={s.sectionHdr}>
           <div style={s.sectionTitle}>הפרויקטים שלי</div>
-          <div style={s.sectionCount}>{projects.length} פרויקטים</div>
+          <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+            <div style={s.sectionCount}>{projects.length} פרויקטים</div>
+            {projects.length > 0 && (
+              <button style={s.selectBtn} onClick={()=>{ setSelectMode(!selectMode); setSelected([]); setShowAssign(false) }}>
+                {selectMode ? 'ביטול' : 'בחר'}
+              </button>
+            )}
+          </div>
         </div>
+
+        {selectMode && selected.length > 0 && (
+          <div style={s.actionBar}>
+            <div style={s.actionCount}>{selected.length} נבחרו</div>
+            <button style={s.assignSelBtn} onClick={()=>setShowAssign(!showAssign)}>👤 שייך</button>
+            <button style={s.delSelBtn} onClick={deleteSelected} disabled={saving}>{saving?'מוחק...':'🗑 מחק'}</button>
+          </div>
+        )}
+
+        {showAssign && (
+          <div style={s.assignBox}>
+            <div style={s.assignTitle}>שייך לפרויקטים נבחרים:</div>
+            <select style={s.sel} value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
+              <option value="">בחר מנהל...</option>
+              {managers.filter(m => m.id !== dbUser?.id).map(m => (
+                <option key={m.id} value={m.id}>{m.name} — {m.role === 'super_admin' ? 'מנהל ראשי' : 'מנהל פרויקטים'}</option>
+              ))}
+            </select>
+            <button style={s.assignBtn} onClick={assignSelected} disabled={!assignTo || saving}>
+              {saving ? 'משייך...' : '✓ שייך'}
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div style={s.emptyWrap}>טוען...</div>
@@ -150,12 +249,23 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
         ) : projects.map(p => {
           const pct = getProgress(p)
           const open = getOpenTasks(p)
+          const isSel = selected.includes(p.id)
           return (
-            <div key={p.id} style={s.card} onClick={()=>setSelectedProject(p)}>
+            <div key={p.id} style={s.card(isSel)} onClick={()=>{
+              if (selectMode) toggleSelect(p.id)
+              else setSelectedProject(p)
+            }}>
               <div style={s.cardTop}>
-                <div>
-                  <div style={s.projName}>{p.name}</div>
-                  <div style={s.projClient}>{p.client}</div>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', flex:1}}>
+                  {selectMode && (
+                    <div style={{width:'20px', height:'20px', borderRadius:'6px', border: isSel ? 'none' : '2px solid #D4CFCA', background: isSel ? '#2D4A3E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'12px', color:'#fff'}}>
+                      {isSel ? '✓' : ''}
+                    </div>
+                  )}
+                  <div>
+                    <div style={s.projName}>{p.name}</div>
+                    <div style={s.projClient}>{p.client}</div>
+                  </div>
                 </div>
                 <span style={s.badge(p.status)}>{statusLabel(p.status).text}</span>
               </div>
