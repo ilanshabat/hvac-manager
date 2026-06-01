@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { t } from '../lib/translations'
 import AddProject from './AddProject'
 import ProjectDetail from './ProjectDetail'
 
-export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManageUsers }) {
+export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManageUsers, lang = 'he' }) {
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -15,6 +16,8 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   const [showAssign, setShowAssign] = useState(false)
   const [assignTo, setAssignTo] = useState('')
   const [saving, setSaving] = useState(false)
+  const tr = t[lang]
+  const dir = tr.dir
 
   useEffect(() => {
     if (dbUserProp) {
@@ -41,7 +44,6 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   const fetchProjects = async (currentDbUser) => {
     const u = currentDbUser || dbUser
     let query = supabase.from('projects').select('*, tasks(id, status)').order('created_at', { ascending: false })
-
     if (u?.role !== 'super_admin') {
       const { data: assignments } = await supabase
         .from('project_manager_assignments')
@@ -56,17 +58,13 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
         return
       }
     }
-
     const { data, error } = await query
     if (!error) setProjects(data || [])
     setLoading(false)
   }
 
   const fetchManagers = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .in('role', ['project_manager', 'super_admin'])
+    const { data } = await supabase.from('users').select('*').in('role', ['project_manager', 'super_admin'])
     setManagers(data || [])
   }
 
@@ -75,7 +73,7 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   }
 
   const deleteSelected = async () => {
-    if (!window.confirm(`למחוק ${selected.length} פרויקטים?`)) return
+    if (!window.confirm(`${lang==='ar'?'حذف':'Delete'} ${selected.length}?`)) return
     setSaving(true)
     for (const id of selected) {
       await supabase.from('project_manager_assignments').delete().eq('project_id', id)
@@ -92,50 +90,35 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
     if (!assignTo) return
     setSaving(true)
     for (const id of selected) {
-      await supabase.from('project_manager_assignments').upsert([{
-        project_id: id, user_id: assignTo
-      }])
+      await supabase.from('project_manager_assignments').upsert([{ project_id: id, user_id: assignTo }])
     }
     setSelected([])
     setSelectMode(false)
     setShowAssign(false)
     setAssignTo('')
     setSaving(false)
-    alert('שויך בהצלחה!')
+    alert(lang==='ar' ? 'تم التعيين بنجاح!' : lang==='en' ? 'Assigned successfully!' : 'שויך בהצלחה!')
   }
 
   const statusLabel = (s) => ({
-    active:   { text: 'פעיל',     bg: '#E8F5EF', color: '#2D4A3E' },
-    risk:     { text: '⚠ סיכון', bg: '#FDF0ED', color: '#C0392B' },
-    planning: { text: 'תכנון',    bg: '#FEF3E2', color: '#C07B2A' },
-    done:     { text: 'הושלם',   bg: '#E8F5EF', color: '#2D4A3E' },
-    paused:   { text: 'מושהה',   bg: '#F5F2EC', color: '#9B9280' },
-  }[s] || { text: s, bg: '#F5F2EC', color: '#9B9280' })
+    active:   { text: lang==='ar'?'نشط':lang==='en'?'Active':'פעיל', bg:'#E8F5EF', color:'#2D4A3E' },
+    risk:     { text: lang==='ar'?'⚠ خطر':lang==='en'?'⚠ Risk':'⚠ סיכון', bg:'#FDF0ED', color:'#C0392B' },
+    planning: { text: lang==='ar'?'تخطيط':lang==='en'?'Planning':'תכנון', bg:'#FEF3E2', color:'#C07B2A' },
+    done:     { text: lang==='ar'?'مكتمل':lang==='en'?'Done':'הושלם', bg:'#E8F5EF', color:'#2D4A3E' },
+    paused:   { text: lang==='ar'?'متوقف':lang==='en'?'Paused':'מושהה', bg:'#F5F2EC', color:'#9B9280' },
+  }[s] || { text: s, bg:'#F5F2EC', color:'#9B9280' })
 
-  const barColor = (s) => ({
-    active: '#2D4A3E', risk: '#E76F51', planning: '#F4A261', done: '#2D4A3E', paused: '#B5AFA6'
-  }[s] || '#2D4A3E')
+  const barColor = (s) => ({ active:'#2D4A3E', risk:'#E76F51', planning:'#F4A261', done:'#2D4A3E', paused:'#B5AFA6' }[s] || '#2D4A3E')
+  const getProgress = (p) => { const all = p.tasks?.length||0; const done = p.tasks?.filter(t=>t.status==='done').length||0; return all>0?Math.round((done/all)*100):0 }
+  const getOpenTasks = (p) => p.tasks?.filter(t=>t.status!=='done').length||0
+  const initials = (name) => { if(!name)return'א'; const parts=name.trim().split(' '); return parts.length>=2?parts[0][0]+parts[1][0]:parts[0].slice(0,2) }
 
-  const getProgress = (p) => {
-    const all = p.tasks?.length || 0
-    const done = p.tasks?.filter(t => t.status === 'done').length || 0
-    return all > 0 ? Math.round((done / all) * 100) : 0
-  }
-
-  const getOpenTasks = (p) => p.tasks?.filter(t => t.status !== 'done').length || 0
-
-  const initials = (name) => {
-    if (!name) return 'א'
-    const parts = name.trim().split(' ')
-    return parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)
-  }
-
-  const activeCount = projects.filter(p => p.status === 'active').length
-  const planningCount = projects.filter(p => p.status === 'planning').length
-  const riskCount = projects.filter(p => p.status === 'risk').length
+  const activeCount = projects.filter(p=>p.status==='active').length
+  const planningCount = projects.filter(p=>p.status==='planning').length
+  const riskCount = projects.filter(p=>p.status==='risk').length
 
   const s = {
-    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'32px' },
+    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:dir, maxWidth:'390px', margin:'0 auto', paddingBottom:'32px' },
     header: { background:'#2D4A3E', padding:'24px 20px 28px' },
     topRow: { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'20px' },
     avatarWrap: { display:'flex', alignItems:'center', gap:'14px' },
@@ -157,7 +140,7 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
     sectionTitle: { fontSize:'13px', fontWeight:'600', color:'#6B6457' },
     sectionCount: { fontSize:'11px', color:'#9B9280' },
     selectBtn: { fontSize:'11px', color:'#2D4A3E', background:'#E8F5EF', border:'none', borderRadius:'8px', padding:'4px 10px', cursor:'pointer', fontFamily:'Heebo, sans-serif', fontWeight:'500' },
-    card: (sel) => ({ background: sel ? '#E8F5EF' : '#fff', borderRadius:'20px', border: sel ? '2px solid #2D4A3E' : '1px solid #E8E4DC', padding:'16px', marginBottom:'12px', cursor:'pointer', transition:'all 0.15s' }),
+    card: (sel) => ({ background: sel?'#E8F5EF':'#fff', borderRadius:'20px', border: sel?'2px solid #2D4A3E':'1px solid #E8E4DC', padding:'16px', marginBottom:'12px', cursor:'pointer', transition:'all 0.15s' }),
     cardTop: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'12px' },
     projName: { fontSize:'15px', fontWeight:'600', color:'#1C2B20', marginBottom:'3px' },
     projClient: { fontSize:'12px', color:'#9B9280' },
@@ -179,8 +162,8 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
     assignBtn: { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
   }
 
-  if (showAdd) return <AddProject user={user} dbUser={dbUser} onBack={()=>setShowAdd(false)} onSaved={()=>{ setShowAdd(false); fetchProjects() }} />
-  if (selectedProject) return <ProjectDetail project={selectedProject} user={user} onBack={()=>{ setSelectedProject(null); fetchProjects() }} />
+  if (showAdd) return <AddProject user={user} dbUser={dbUser} onBack={()=>setShowAdd(false)} onSaved={()=>{ setShowAdd(false); fetchProjects() }} lang={lang} />
+  if (selectedProject) return <ProjectDetail project={selectedProject} user={user} onBack={()=>{ setSelectedProject(null); fetchProjects() }} lang={lang} />
 
   return (
     <div style={s.app}>
@@ -189,38 +172,38 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
           <div style={s.avatarWrap}>
             <div style={s.avatar}>{initials(dbUser?.name || user?.email)}</div>
             <div>
-              <div style={s.welcome}>ברוך הבא,</div>
+              <div style={s.welcome}>{tr.welcome},</div>
               <div style={s.userName}>{dbUser?.name || user?.email}</div>
-              <div style={s.userRole}>{dbUser?.role === 'super_admin' ? 'מנהל ראשי' : 'מנהל פרויקטים'}</div>
+              <div style={s.userRole}>{dbUser?.role === 'super_admin' ? tr.superAdminRole : tr.managerRole}</div>
             </div>
           </div>
           <div style={s.topBtns}>
-            <button style={s.logoutBtn} onClick={onLogout}>יציאה</button>
+            <button style={s.logoutBtn} onClick={onLogout}>{tr.logout}</button>
             {dbUser?.role === 'super_admin' && onManageUsers && (
-              <button style={s.usersBtn} onClick={onManageUsers}>👥 משתמשים</button>
+              <button style={s.usersBtn} onClick={onManageUsers}>👥 {lang==='ar'?'المستخدمون':lang==='en'?'Users':'משתמשים'}</button>
             )}
           </div>
         </div>
 
         <div style={s.summaryCard}>
           <div style={s.summaryNum}>{projects.length}</div>
-          <div style={s.summaryLabel}>סה"כ פרויקטים</div>
+          <div style={s.summaryLabel}>{tr.totalProjects}</div>
           <div style={s.dots}>
-            {activeCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#4ADE80')}></div><span>{activeCount} פעילים</span></div>}
-            {planningCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#F4C77A')}></div><span>{planningCount} בתכנון</span></div>}
-            {riskCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#E76F51')}></div><span>{riskCount} בסיכון</span></div>}
+            {activeCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#4ADE80')}></div><span>{activeCount} {lang==='ar'?'نشطة':lang==='en'?'active':'פעילים'}</span></div>}
+            {planningCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#F4C77A')}></div><span>{planningCount} {lang==='ar'?'تخطيط':lang==='en'?'planning':'בתכנון'}</span></div>}
+            {riskCount > 0 && <div style={s.dot()}><div style={s.dotCircle('#E76F51')}></div><span>{riskCount} {lang==='ar'?'خطر':lang==='en'?'at risk':'בסיכון'}</span></div>}
           </div>
         </div>
       </div>
 
       <div style={s.body}>
         <div style={s.sectionHdr}>
-          <div style={s.sectionTitle}>הפרויקטים שלי</div>
+          <div style={s.sectionTitle}>{tr.projects}</div>
           <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
-            <div style={s.sectionCount}>{projects.length} פרויקטים</div>
+            <div style={s.sectionCount}>{projects.length}</div>
             {projects.length > 0 && (
               <button style={s.selectBtn} onClick={()=>{ setSelectMode(!selectMode); setSelected([]); setShowAssign(false) }}>
-                {selectMode ? 'ביטול' : 'בחר'}
+                {selectMode ? tr.cancel : lang==='ar'?'اختر':lang==='en'?'Select':'בחר'}
               </button>
             )}
           </div>
@@ -228,48 +211,44 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
 
         {selectMode && selected.length > 0 && (
           <div style={s.actionBar}>
-            <div style={s.actionCount}>{selected.length} נבחרו</div>
-            <button style={s.assignSelBtn} onClick={()=>setShowAssign(!showAssign)}>👤 שייך</button>
-            <button style={s.delSelBtn} onClick={deleteSelected} disabled={saving}>{saving?'מוחק...':'🗑 מחק'}</button>
+            <div style={s.actionCount}>{selected.length} {lang==='ar'?'محدد':lang==='en'?'selected':'נבחרו'}</div>
+            <button style={s.assignSelBtn} onClick={()=>setShowAssign(!showAssign)}>👤 {lang==='ar'?'تعيين':lang==='en'?'Assign':'שייך'}</button>
+            <button style={s.delSelBtn} onClick={deleteSelected} disabled={saving}>{saving?'...':'🗑 '+tr.delete}</button>
           </div>
         )}
 
         {showAssign && (
           <div style={s.assignBox}>
-            <div style={s.assignTitle}>שייך לפרויקטים נבחרים:</div>
+            <div style={s.assignTitle}>{lang==='ar'?'تعيين للمشاريع المحددة:':lang==='en'?'Assign to selected projects:':'שייך לפרויקטים נבחרים:'}</div>
             <select style={s.sel} value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
-              <option value="">בחר מנהל...</option>
+              <option value="">{lang==='ar'?'اختر مديراً...':lang==='en'?'Choose manager...':'בחר מנהל...'}</option>
               {managers.filter(m => m.id !== dbUser?.id).map(m => (
-                <option key={m.id} value={m.id}>{m.name} — {m.role === 'super_admin' ? 'מנהל ראשי' : 'מנהל פרויקטים'}</option>
+                <option key={m.id} value={m.id}>{m.name} — {m.role === 'super_admin' ? tr.superAdminRole : tr.managerRole}</option>
               ))}
             </select>
             <button style={s.assignBtn} onClick={assignSelected} disabled={!assignTo || saving}>
-              {saving ? 'משייך...' : '✓ שייך'}
+              {saving ? '...' : tr.save}
             </button>
           </div>
         )}
 
         {loading ? (
-          <div style={s.emptyWrap}>טוען...</div>
+          <div style={s.emptyWrap}>{tr.loading}</div>
         ) : projects.length === 0 ? (
           <div style={s.emptyWrap}>
             <div style={{fontSize:'40px', marginBottom:'12px'}}>📋</div>
-            <div style={{fontSize:'15px', fontWeight:'600', color:'#1C2B20', marginBottom:'6px'}}>אין פרויקטים עדיין</div>
-            <div style={{fontSize:'13px'}}>לחץ על הכפתור למטה כדי להוסיף פרויקט ראשון</div>
+            <div style={{fontSize:'15px', fontWeight:'600', color:'#1C2B20', marginBottom:'6px'}}>{tr.noProjects}</div>
           </div>
         ) : projects.map(p => {
           const pct = getProgress(p)
           const open = getOpenTasks(p)
           const isSel = selected.includes(p.id)
           return (
-            <div key={p.id} style={s.card(isSel)} onClick={()=>{
-              if (selectMode) toggleSelect(p.id)
-              else setSelectedProject(p)
-            }}>
+            <div key={p.id} style={s.card(isSel)} onClick={()=>{ if(selectMode) toggleSelect(p.id); else setSelectedProject(p) }}>
               <div style={s.cardTop}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px', flex:1}}>
                   {selectMode && (
-                    <div style={{width:'20px', height:'20px', borderRadius:'6px', border: isSel ? 'none' : '2px solid #D4CFCA', background: isSel ? '#2D4A3E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'12px', color:'#fff'}}>
+                    <div style={{width:'20px', height:'20px', borderRadius:'6px', border: isSel?'none':'2px solid #D4CFCA', background: isSel?'#2D4A3E':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'12px', color:'#fff'}}>
                       {isSel ? '✓' : ''}
                     </div>
                   )}
@@ -284,14 +263,14 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
                 <div style={s.progFill(pct, p.status)}></div>
               </div>
               <div style={s.cardBottom}>
-                <span style={s.taskChip}>{open} משימות פתוחות</span>
+                <span style={s.taskChip}>{open} {tr.openTasks}</span>
                 <span style={s.pctText(p.status)}>{pct}%</span>
               </div>
             </div>
           )
         })}
 
-        <button style={s.addBtn} onClick={()=>setShowAdd(true)}>+ פרויקט חדש</button>
+        <button style={s.addBtn} onClick={()=>setShowAdd(true)}>{tr.newProject}</button>
       </div>
     </div>
   )

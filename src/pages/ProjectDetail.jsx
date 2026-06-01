@@ -104,8 +104,7 @@ export default function ProjectDetail({ project, user, onBack }) {
     form:   { background:'#fff', borderRadius:'16px', border:'1px solid #E8E4DC', padding:'14px', marginBottom:'10px' },
     lbl:    { fontSize:'12px', fontWeight:'600', color:'#6B6457', marginBottom:'4px' },
     inp:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
-    textarea: { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px', minHeight:'80px', resize:'vertical' },
-    textareaNote: { width:'100%', border:'1.5px solid #F4C77A', borderRadius:'12px', padding:'10px 14px', fontSize:'13px', color:'#1C2B20', background:'#FFFBF0', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px', minHeight:'80px', resize:'vertical' },
+    ta:     { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px', minHeight:'80px', resize:'vertical' },
     sel:    { width:'100%', border:'1.5px solid #E8E4DC', borderRadius:'12px', padding:'10px 14px', fontSize:'14px', color:'#1C2B20', background:'#F9F7F4', fontFamily:'Heebo, sans-serif', boxSizing:'border-box', marginBottom:'10px' },
     save:   { width:'100%', padding:'11px', background:'#2D4A3E', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif', marginBottom:'8px' },
     del:    { width:'100%', padding:'11px', background:'#FDF0ED', border:'1px solid #F4C9B7', borderRadius:'12px', color:'#C0392B', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Heebo, sans-serif' },
@@ -154,7 +153,7 @@ export default function ProjectDetail({ project, user, onBack }) {
             {showAdd && (
               <div style={c.form}>
                 <div style={c.lbl}>שם המשימה</div>
-                <input style={c.inp} placeholder="תיאור המשימה..." value={form.title} onChange={e=>setForm({...form,title:e.target.value})} />
+                <textarea style={c.ta} placeholder="תיאור המשימה..." value={form.title} onChange={e=>setForm({...form,title:e.target.value})} />
                 <div style={c.lbl}>עדיפות</div>
                 <select style={c.sel} value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})}>
                   <option value="high">דחוף</option>
@@ -224,8 +223,8 @@ export default function ProjectDetail({ project, user, onBack }) {
             <button style={c.add} onClick={()=>setShowAdd(!showAdd)}>+ הוסף משימה</button>
           </>
         )}
-        {tab==='subs'     && <Subcontractors project={project} user={user} onBack={()=>setTab('tasks')} />}
-        {tab==='bom'      && <BOM project={project} onBack={()=>setTab('tasks')} />}
+        {tab==='subs' && <Subcontractors project={project} user={user} onBack={()=>setTab('tasks')} />}
+        {tab==='bom' && <BOM project={project} onBack={()=>setTab('tasks')} />}
         {tab==='meetings' && <div style={c.soon}><div style={{fontSize:'32px',marginBottom:'10px'}}>📅</div>מודול יומן — בקרוב</div>}
       </div>
 
@@ -234,33 +233,27 @@ export default function ProjectDetail({ project, user, onBack }) {
           <div style={c.sheet}>
             <div style={c.handle}></div>
             <div style={c.shTitle}>✏️ עריכת משימה</div>
-
             <div style={c.lbl}>שם המשימה</div>
-            <input style={c.inp} value={editTask.title} onChange={e=>setEditTask({...editTask,title:e.target.value})} />
-
+            <textarea style={c.ta} value={editTask.title} onChange={e=>setEditTask({...editTask,title:e.target.value})} />
             <div style={c.lbl}>עדיפות</div>
             <select style={c.sel} value={editTask.priority} onChange={e=>setEditTask({...editTask,priority:e.target.value})}>
               <option value="high">דחוף</option>
               <option value="medium">בינוני</option>
               <option value="low">נמוך</option>
             </select>
-
             <div style={c.lbl}>תאריך יעד</div>
             <input style={c.inp} type="date" value={editTask.due_date||''} onChange={e=>setEditTask({...editTask,due_date:e.target.value})} />
-
             <div style={c.lbl}>שייך ל</div>
             <select style={c.sel} value={editTask.assignee_id||''} onChange={e=>setEditTask({...editTask,assignee_id:e.target.value})}>
               <option value="">אני (מנהל פרויקט)</option>
               {subs.map(s=>(<option key={s.users.id} value={s.users.id}>{s.users.name}</option>))}
             </select>
-
             {editTask.notes && (
               <div style={{background:'#FFFBF0', border:'1.5px solid #F4C77A', borderRadius:'12px', padding:'10px 14px', marginBottom:'10px'}}>
                 <div style={{fontSize:'11px', fontWeight:'600', color:'#C07B2A', marginBottom:'4px'}}>💬 הערת הקבלן</div>
                 <div style={{fontSize:'13px', color:'#1C2B20'}}>{editTask.notes}</div>
               </div>
             )}
-
             <button style={c.save} onClick={saveEditTask} disabled={saving}>{saving?'שומר...':'✓ שמור שינויים'}</button>
             <button style={c.del} onClick={()=>deleteTask(editTask.id)}>🗑️ מחק משימה</button>
           </div>

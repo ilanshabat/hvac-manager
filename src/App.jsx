@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { getLang } from './lib/translations'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import SubcontractorLogin from './pages/SubcontractorLogin'
 import SubcontractorHome from './pages/SubcontractorHome'
 import UserManagement from './pages/UserManagement'
+import LanguageSelect from './pages/LanguageSelect'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -13,8 +15,12 @@ function App() {
   const [mode, setMode] = useState('manager')
   const [view, setView] = useState('dashboard')
   const [loading, setLoading] = useState(true)
+  const [lang, setLangState] = useState(null)
 
   useEffect(() => {
+    const savedLang = getLang()
+    if (savedLang) setLangState(savedLang)
+
     const savedSub = localStorage.getItem('subUser')
     if (savedSub) {
       setSubUser(JSON.parse(savedSub))
@@ -30,6 +36,10 @@ function App() {
     }
     setLoading(false)
   }, [])
+
+  const handleLanguageSelect = (selectedLang) => {
+    setLangState(selectedLang)
+  }
 
   const handleLogin = async (authUser) => {
     const { data } = await supabase
@@ -70,31 +80,33 @@ function App() {
     </div>
   )
 
+  if (!lang) return <LanguageSelect onSelect={handleLanguageSelect} />
+
   if (mode === 'subcontractor') {
-    if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} />
-    return <SubcontractorHome subUser={subUser} onLogout={handleSubLogout} />
+    if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} lang={lang} />
+    return <SubcontractorHome subUser={subUser} onLogout={handleSubLogout} lang={lang} />
   }
 
   if (!user) return (
     <div>
-      <Login onLogin={handleLogin} />
+      <Login onLogin={handleLogin} lang={lang} />
       <div style={{ textAlign:'center', marginTop:'-20px', paddingBottom:'20px', fontFamily:'Heebo, sans-serif' }}>
         <button
           onClick={() => setMode('subcontractor')}
           style={{ background:'none', border:'none', color:'#2D4A3E', fontSize:'13px', cursor:'pointer', textDecoration:'underline' }}
         >
-          כניסה כקבלן משנה
+          {lang === 'he' ? 'כניסה כקבלן משנה' : lang === 'ar' ? 'دخول كمقاول' : 'Login as subcontractor'}
         </button>
       </div>
     </div>
   )
 
   if (dbUser?.role === 'super_admin') {
-    if (view === 'users') return <UserManagement dbUser={dbUser} onBack={() => setView('dashboard')} />
-    return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} onManageUsers={() => setView('users')} />
+    if (view === 'users') return <UserManagement dbUser={dbUser} onBack={() => setView('dashboard')} lang={lang} />
+    return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} onManageUsers={() => setView('users')} lang={lang} />
   }
 
-  return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} />
+  return <Dashboard user={user} dbUser={dbUser} onLogout={handleLogout} lang={lang} />
 }
 
 export default App
