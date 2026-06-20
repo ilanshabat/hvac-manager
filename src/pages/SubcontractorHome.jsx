@@ -63,7 +63,7 @@ export default function SubcontractorHome({ subUser, onLogout, lang = 'he' }) {
   const avatarColors = ['#EEF2FF','#E8F5EF','#FEF3E2']
 
   const s = {
-    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:dir, maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
+    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:dir, maxWidth:'100%', margin:'0 auto', paddingBottom:'40px' },
     topbar: { background:'#2D4A3E', padding:'16px', display:'flex', alignItems:'center', justifyContent:'space-between' },
     topbarLeft: { display:'flex', alignItems:'center', gap:'10px' },
     av: { width:'40px', height:'40px', borderRadius:'50%', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'600', color:'#fff' },
@@ -93,7 +93,7 @@ export default function SubcontractorHome({ subUser, onLogout, lang = 'he' }) {
     tabs: { display:'flex', background:'#fff', margin:'12px 16px 0', borderRadius:'14px', padding:'4px', border:'1px solid #E8E4DC', gap:'2px' },
     tab: (active) => ({ flex:1, padding:'8px 4px', textAlign:'center', fontSize:'12px', fontWeight:'500', cursor:'pointer', borderRadius:'10px', border:'none', background: active ? '#2D4A3E' : 'transparent', color: active ? '#fff' : '#9B9280', fontFamily:'Heebo, sans-serif' }),
     modal: { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' },
-    sheet: { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'390px', padding:'16px 16px 32px', direction:dir },
+    sheet: { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'100%', padding:'16px 16px 32px', direction:dir },
     handle: { width:'40px', height:'4px', background:'#D4CFCA', borderRadius:'2px', margin:'0 auto 14px' },
     shTitle: { fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'6px' },
     shSub: { fontSize:'12px', color:'#9B9280', marginBottom:'14px' },

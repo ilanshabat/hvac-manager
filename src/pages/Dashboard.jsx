@@ -118,7 +118,7 @@ export default function Dashboard({ user, dbUser: dbUserProp, onLogout, onManage
   const riskCount = projects.filter(p=>p.status==='risk').length
 
   const s = {
-    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:dir, maxWidth:'390px', margin:'0 auto', paddingBottom:'32px' },
+    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:dir, maxWidth:'100%', margin:'0 auto', paddingBottom:'32px' },
     header: { background:'#2D4A3E', padding:'24px 20px 28px' },
     topRow: { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'20px' },
     avatarWrap: { display:'flex', alignItems:'center', gap:'14px' },

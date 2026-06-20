@@ -32,7 +32,7 @@ export default function SubcontractorLogin({ onLogin, lang = 'he' }) {
 
   const s = {
     wrap: { minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', direction:dir, padding:'20px' },
-    card: { width:'100%', maxWidth:'390px', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
+    card: { width:'100%', maxWidth:'100%', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
     hero: { background:'#2D4A3E', padding:'40px 24px 32px', textAlign:'center', position:'relative', overflow:'hidden' },
     heroCircle1: { position:'absolute', top:'-30px', left:'-30px', width:'140px', height:'140px', borderRadius:'50%', background:'rgba(255,255,255,0.04)' },
     heroCircle2: { position:'absolute', bottom:'-20px', right:'10px', width:'80px', height:'80px', borderRadius:'50%', background:'rgba(255,255,255,0.03)' },

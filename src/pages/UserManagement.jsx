@@ -69,7 +69,7 @@ export default function UserManagement({ dbUser, onBack }) {
   }
 
   const s = {
-    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
+    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'100%', margin:'0 auto', paddingBottom:'40px' },
     top: { background:'#2D4A3E', padding:'14px 16px', display:'flex', alignItems:'center', gap:'10px' },
     back: { width:'34px', height:'34px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'none', fontSize:'18px', color:'#fff', cursor:'pointer' },
     tt: { fontSize:'15px', fontWeight:'600', color:'#fff', flex:1 },

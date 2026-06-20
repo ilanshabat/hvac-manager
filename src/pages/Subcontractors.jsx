@@ -101,7 +101,7 @@ export default function Subcontractors({ project, onBack }) {
   const textColors = ['#4338CA','#2D4A3E','#C07B2A','#C0392B','#3B5BDB']
 
   const s = {
-    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
+    app: { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'100%', margin:'0 auto', paddingBottom:'40px' },
     topbar: { background:'#2D4A3E', padding:'14px 16px', display:'flex', alignItems:'center', gap:'10px' },
     backBtn: { width:'34px', height:'34px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', border:'none', fontSize:'18px', color:'#fff' },
     topbarTitle: { fontSize:'15px', fontWeight:'600', color:'#fff', flex:1 },

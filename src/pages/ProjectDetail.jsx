@@ -76,7 +76,7 @@ export default function ProjectDetail({ project, user, onBack }) {
   const late = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done')
 
   const c = {
-    app:    { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'390px', margin:'0 auto', paddingBottom:'40px' },
+    app:    { minHeight:'100vh', background:'#F2EFE9', fontFamily:'Heebo, sans-serif', direction:'rtl', maxWidth:'100%', margin:'0 auto', paddingBottom:'40px' },
     top:    { background:'#2D4A3E', padding:'14px 16px', display:'flex', alignItems:'center', gap:'10px' },
     back:   { width:'34px', height:'34px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'none', fontSize:'18px', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' },
     tInfo:  { flex:1 },
@@ -113,7 +113,7 @@ export default function ProjectDetail({ project, user, onBack }) {
     soon:   { textAlign:'center', padding:'40px 24px', color:'#9B9280', fontSize:'13px' },
     slbl:   { fontSize:'12px', fontWeight:'600', color:'#9B9280', marginBottom:'6px' },
     modal:  { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' },
-    sheet:  { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'390px', padding:'16px 16px 32px', maxHeight:'85vh', overflowY:'auto' },
+    sheet:  { background:'#FAFAF8', borderRadius:'24px 24px 0 0', width:'100%', maxWidth:'100%', padding:'16px 16px 32px', maxHeight:'85vh', overflowY:'auto' },
     handle: { width:'40px', height:'4px', background:'#D4CFCA', borderRadius:'2px', margin:'0 auto 14px' },
     shTitle:{ fontSize:'16px', fontWeight:'600', color:'#1C2B20', marginBottom:'14px' },
   }

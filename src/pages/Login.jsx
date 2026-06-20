@@ -32,7 +32,7 @@ export default function Login({ onLogin, lang: initialLang = 'he', onLangChange 
 
   const s = {
     wrap: { minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', direction:dir, padding:'20px' },
-    card: { width:'100%', maxWidth:'390px', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
+    card: { width:'100%', maxWidth:'100%', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
     hero: { background:'#2D4A3E', padding:'40px 24px 32px', textAlign:'center', position:'relative' },
     langRow: { display:'flex', justifyContent:'center', gap:'8px', marginBottom:'20px' },
     langPill: (active) => ({ padding:'5px 12px', borderRadius:'20px', border: active ? 'none' : '1px solid rgba(255,255,255,0.3)', background: active ? 'rgba(255,255,255,0.25)' : 'transparent', color:'#fff', fontSize:'12px', fontWeight: active ? '600' : '400', cursor:'pointer', fontFamily:'Heebo, sans-serif' }),

@@ -8,7 +8,7 @@ export default function LanguageSelect({ onSelect }) {
 
   const s = {
     wrap: { minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', padding:'20px' },
-    card: { width:'100%', maxWidth:'390px', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
+    card: { width:'100%', maxWidth:'100%', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
     hero: { background:'#2D4A3E', padding:'40px 24px 32px', textAlign:'center' },
     logo: { width:'72px', height:'72px', borderRadius:'22px', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:'32px' },
     appName: { fontSize:'24px', fontWeight:'600', color:'#fff', marginBottom:'6px' },
