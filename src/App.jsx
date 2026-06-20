@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { getLang } from './lib/translations'
+import { getLang, setLang } from './lib/translations'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import SubcontractorLogin from './pages/SubcontractorLogin'
 import SubcontractorHome from './pages/SubcontractorHome'
 import UserManagement from './pages/UserManagement'
-import LanguageSelect from './pages/LanguageSelect'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -15,7 +14,7 @@ function App() {
   const [mode, setMode] = useState('manager')
   const [view, setView] = useState('dashboard')
   const [loading, setLoading] = useState(true)
-  const [lang, setLangState] = useState(null)
+  const [lang, setLangState] = useState('he')
 
   useEffect(() => {
     const savedLang = getLang()
@@ -37,8 +36,9 @@ function App() {
     setLoading(false)
   }, [])
 
-  const handleLanguageSelect = (selectedLang) => {
-    setLangState(selectedLang)
+  const handleLangChange = (l) => {
+    setLang(l)
+    setLangState(l)
   }
 
   const handleLogin = async (authUser) => {
@@ -80,16 +80,14 @@ function App() {
     </div>
   )
 
-  if (!lang) return <LanguageSelect onSelect={handleLanguageSelect} />
-
   if (mode === 'subcontractor') {
-    if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} lang={lang} />
+    if (!subUser) return <SubcontractorLogin onLogin={handleSubLogin} lang={lang} onLangChange={handleLangChange} />
     return <SubcontractorHome subUser={subUser} onLogout={handleSubLogout} lang={lang} />
   }
 
   if (!user) return (
     <div>
-      <Login onLogin={handleLogin} lang={lang} />
+      <Login onLogin={handleLogin} lang={lang} onLangChange={handleLangChange} />
       <div style={{ textAlign:'center', marginTop:'-20px', paddingBottom:'20px', fontFamily:'Heebo, sans-serif' }}>
         <button
           onClick={() => setMode('subcontractor')}

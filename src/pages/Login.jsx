@@ -1,22 +1,27 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { t } from '../lib/translations'
+import { t, setLang } from '../lib/translations'
 
-export default function Login({ onLogin, lang = 'he' }) {
+export default function Login({ onLogin, lang: initialLang = 'he', onLangChange }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [lang, setLangState] = useState(initialLang)
   const tr = t[lang]
   const dir = tr.dir
+
+  const changeLang = (l) => {
+    setLang(l)
+    setLangState(l)
+    if (onLangChange) onLangChange(l)
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-
     if (error) {
       setError(lang==='ar' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : lang==='en' ? 'Invalid email or password' : 'אימייל או סיסמה שגויים')
     } else {
@@ -28,7 +33,9 @@ export default function Login({ onLogin, lang = 'he' }) {
   const s = {
     wrap: { minHeight:'100vh', background:'#F2EFE9', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Heebo, sans-serif', direction:dir, padding:'20px' },
     card: { width:'100%', maxWidth:'390px', background:'#fff', borderRadius:'24px', overflow:'hidden', border:'1px solid #E8E4DC' },
-    hero: { background:'#2D4A3E', padding:'40px 24px 32px', textAlign:'center' },
+    hero: { background:'#2D4A3E', padding:'40px 24px 32px', textAlign:'center', position:'relative' },
+    langRow: { display:'flex', justifyContent:'center', gap:'8px', marginBottom:'20px' },
+    langPill: (active) => ({ padding:'5px 12px', borderRadius:'20px', border: active ? 'none' : '1px solid rgba(255,255,255,0.3)', background: active ? 'rgba(255,255,255,0.25)' : 'transparent', color:'#fff', fontSize:'12px', fontWeight: active ? '600' : '400', cursor:'pointer', fontFamily:'Heebo, sans-serif' }),
     logo: { width:'64px', height:'64px', borderRadius:'20px', background:'rgba(255,255,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:'28px' },
     title: { fontSize:'22px', fontWeight:'600', color:'#fff', marginBottom:'6px' },
     sub: { fontSize:'13px', color:'rgba(255,255,255,0.7)' },
@@ -43,6 +50,11 @@ export default function Login({ onLogin, lang = 'he' }) {
     <div style={s.wrap}>
       <div style={s.card}>
         <div style={s.hero}>
+          <div style={s.langRow}>
+            <button style={s.langPill(lang==='he')} onClick={()=>changeLang('he')}>🇮🇱 עב</button>
+            <button style={s.langPill(lang==='en')} onClick={()=>changeLang('en')}>🇺🇸 EN</button>
+            <button style={s.langPill(lang==='ar')} onClick={()=>changeLang('ar')}>🇸🇦 عر</button>
+          </div>
           <div style={s.logo}>🏗️</div>
           <div style={s.title}>{tr.welcome}</div>
           <div style={s.sub}>FieldOps — {lang==='ar'?'إدارة مشاريع البناء':lang==='en'?'Construction Project Management':'ניהול פרויקטי ביצוע'}</div>
